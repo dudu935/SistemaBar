@@ -14,6 +14,7 @@ import java.util.List;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import com.sistemabar.AtualizaçãoProduto;
 import com.sistemabar.model.Produto;
 
 public class ProdutoRepository {
@@ -37,16 +38,25 @@ public class ProdutoRepository {
         }
         
     }
-    public boolean atualizarProduto(String nome, double preço) {
-        List<Produto> produtos = carregarProdutos();
-        for (Produto produto : produtos) {
-            if (produto.getNome().equalsIgnoreCase(nome)){
-                produto.setPreco(preço);
-                return true;
+    public boolean atualizarProduto(AtualizaçãoProduto att) {
+        try (FileReader reader = new FileReader("produto.json")) {
+            produtos = json.fromJson(reader, new TypeToken<List<Produto>>(){}.getType());
+            if(produtos == null) {
+                produtos = new ArrayList<>();
             }
+        } catch (IOException e) {
+            produtos = new ArrayList<>();
+
         }
-        return false;
-    
+        try (FileWriter writer = new FileWriter("produto.json")) {
+            Produto produto1 = buscarProdutoPorNome(att.nome());
+            produto1.setPreco(att.preco());
+            json.toJson(produtos, writer);
+            return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 
     public boolean removerProduto(Produto produto) {

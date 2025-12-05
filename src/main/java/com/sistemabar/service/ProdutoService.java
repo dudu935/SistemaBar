@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Scanner;
 
+import com.sistemabar.AtualizaçãoProduto;
 import com.sistemabar.model.Carrinho;
 import com.sistemabar.model.Estoque;
 import com.sistemabar.model.Produto;
@@ -45,8 +46,8 @@ public class ProdutoService {
         }
         }
         
-    public boolean atualizarPreço(String nome, double preço) {
-        if (produtoRepository.atualizarProduto(nome, preço)) {
+    public boolean atualizarPreço(AtualizaçãoProduto produtoAtt) {
+        if (produtoRepository.atualizarProduto(produtoAtt)) {
             return true;
         }else {
             return false;
