@@ -1,10 +1,11 @@
 package com.sistemabar.service;
 
-import java.io.IOException;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Scanner;
 
 import com.sistemabar.AtualizaçãoProduto;
+import com.sistemabar.CarrinhoAddDTO;
 import com.sistemabar.model.Carrinho;
 import com.sistemabar.model.Estoque;
 import com.sistemabar.model.Produto;
@@ -44,7 +45,7 @@ public class ProdutoService {
         }else {
             return false;
         }
-        }
+    }
         
     public boolean atualizarPreço(AtualizaçãoProduto produtoAtt) {
         if (produtoRepository.atualizarProduto(produtoAtt)) {
@@ -59,10 +60,21 @@ public class ProdutoService {
         
     }
 
-    public void adicionarProdutoAoCarrinho(Produto produto, int quantidade) {
+    public boolean adicionarProdutoAoCarrinho(Produto produto, int quantidade) {
         ProdutoCarrinho produtoCarrinho = new ProdutoCarrinho(produto, quantidade);
-        getCarrinho().adicionarProduto(produtoCarrinho);
-        System.out.println("Produto adicionado ao carrinho: " + produto.getNome());
+        Estoque estoqueEncontrado = null;
+        for (Estoque e : estoqueRepository.carregarEstoque()) {
+            e.getProduto().equals(produtoCarrinho.getProduto());
+            estoqueEncontrado = e;
+        }
+        if (produtoCarrinho.getQuantidade() <= estoqueEncontrado.getQuantidade()) {
+            carrinho.adicionarProduto(produtoCarrinho);
+            System.out.println("Produto adicionado ao carrinho: " + produto.getNome());
+            return true;
+        } else {
+            return false;
+        }
+
     }   
 
     public void adicionarProdutoAoEstoque(Produto produto, int quantidade) {
@@ -73,24 +85,54 @@ public class ProdutoService {
         System.out.println("Adicionado ao estoque: " + produto.getNome() + " - Quantidade: " + quantidade       );
     }
 
-    public void mostrarCarrinho() {
-        System.out.println("Produtos no carrinho:");
-        for (ProdutoCarrinho produto : getCarrinho().getProdutos()) {
-            System.out.println("- " + produto.getProduto().getNome() + " - Preço: " + produto.getProduto().getPreco());
+    public List<ProdutoCarrinho> mostrarCarrinho() {
+        return carrinho.getProdutos();
         }
-    }
 
-    public void comprarCarrinho(EstoqueRepository estoque, Carrinho carrinho, boolean pagamento) {
+    public boolean comprarCarrinho(boolean pagamento) {
     double total = carrinho.calcularTotal();
     System.out.println("Total da compra: " + total);
     if (pagamento = false) {
-        System.out.println("Crédito insuficiente para realizar a compra.");}
-        else {
-        estoque.removerEstoque(carrinho);
-        carrinho.getProdutos().clear();
+        System.out.println("Crédito insuficiente para realizar a compra.");
+        return false;
+    } else {
+        estoqueRepository.removerEstoque(carrinho);
+        carrinho.limparCarrinho();
         }
         System.out.println("Compra realizada com sucesso.");
+        return true;
         
+    }
+
+    public List<Estoque> listarEstoques() {
+        return estoqueRepository.carregarEstoque();
+    }
+
+    public boolean removerEstoque(Estoque estoque) {
+        adicionarProdutoAoCarrinho(estoque.getProduto(), estoque.getQuantidade());
+        estoqueRepository.removerUmPRoduto(estoque);
+        return true;
+    }
+
+    public boolean atualizarProduto(Estoque estoque){
+        estoqueRepository.atualizarEstoque(estoque);
+        return true;
+    }
+
+    public boolean atualizaCarrinho(CarrinhoAddDTO carrinhoAddDTO) {
+        Produto produto = new Produto(carrinhoAddDTO.produto().nome(), carrinhoAddDTO.produto().preco());
+        ProdutoCarrinho proCarrinho = new ProdutoCarrinho(produto, carrinhoAddDTO.quantidade());
+        carrinho.atualizarCarrinho(proCarrinho);
+        return true;
+    }
+
+    public boolean removerProdutoCar (CarrinhoAddDTO carrinhoAddDTO) {
+        Produto produto = new Produto(carrinhoAddDTO.produto().nome(), carrinhoAddDTO.produto().preco());
+        ProdutoCarrinho proCarrinho = new ProdutoCarrinho(produto, carrinhoAddDTO.quantidade());
+        carrinho.removerProduto(proCarrinho);
+        carrinho.getProdutos().remove(proCarrinho);
+
+        return true;
     }
 
 }

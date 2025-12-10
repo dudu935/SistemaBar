@@ -46,17 +46,25 @@ public class ProdutoRepository {
             }
         } catch (IOException e) {
             produtos = new ArrayList<>();
-
+        }
+        boolean atualizado = false;
+        for (Produto produto : produtos) {
+            if (produto.getNome().equals(att.nome())) {
+                produto.setPreco(att.preco());
+                atualizado = true;
+                break;
+            }
         }
         try (FileWriter writer = new FileWriter("produto.json")) {
-            Produto produto1 = buscarProdutoPorNome(att.nome());
-            produto1.setPreco(att.preco());
-            json.toJson(produtos, writer);
-            return true;
+            if(atualizado) {
+                json.toJson(produtos, writer);
+                return true;
+            }
         } catch (Exception e) {
             e.printStackTrace();
             return false;
         }
+        return atualizado;
     }
 
     public boolean removerProduto(Produto produto) {
@@ -121,6 +129,7 @@ public class ProdutoRepository {
         }
         return null;
     }
+
 
 
 

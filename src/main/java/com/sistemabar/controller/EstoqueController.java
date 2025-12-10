@@ -1,36 +1,40 @@
 package com.sistemabar.controller;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonIOException;
+import com.google.gson.JsonSyntaxException;
+import com.sistemabar.AtualizaçãoProduto;
+import com.sistemabar.CriaEstoqueDTO;
+import com.sistemabar.ProcuraObjDTO;
+import com.sistemabar.model.Estoque;
+import com.sistemabar.model.Produto;
+import com.sistemabar.repository.EstoqueRepository;
+import com.sistemabar.repository.ProdutoRepository;
+import com.sistemabar.service.ProdutoService;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 
-import com.google.gson.*;
-import com.sistemabar.AtualizaçãoProduto;
-import com.sistemabar.ProcuraObjDTO;
-import com.sistemabar.model.Produto;
-
-import com.sistemabar.model.Produto;
-import com.sistemabar.repository.EstoqueRepository;
-import com.sistemabar.repository.ProdutoRepository;
-import com.sistemabar.service.ProdutoService;
-import com.sun.net.httpserver.*;
-
-
-public class ProdutoController implements HttpHandler {
+public class EstoqueController implements HttpHandler {
     ProdutoRepository produtoRepository = new ProdutoRepository();
     EstoqueRepository estoqueRepository = new EstoqueRepository();
     ProdutoService produtoService = new ProdutoService(estoqueRepository, produtoRepository);
     Gson json = new GsonBuilder().setPrettyPrinting().create();
 
     @Override
-    public void handle(@org.jetbrains.annotations.NotNull HttpExchange exchange) throws IOException{
+    public void handle(@org.jetbrains.annotations.NotNull HttpExchange exchange) throws IOException {
         String method = exchange.getRequestMethod();
         String response = "";
 
         switch (method) {
             case "GET":
                 try {
-                    response = json.toJson(produtoService.listarProdutos());
+                    response = json.toJson(produtoService.listarEstoques());
                     byte[] respostaBytes = response.getBytes(StandardCharsets.UTF_8);
 
                     exchange.getResponseHeaders().add("Content-Type", "application/json");
@@ -52,13 +56,16 @@ public class ProdutoController implements HttpHandler {
                     }
                 }
                 break;
-            
+
             case "POST":
                 try {
-                    Produto produto = json.fromJson(new InputStreamReader(exchange.getRequestBody()), Produto.class);
-                    if (produto != null) {
-                        produtoService.criarProduto(produto.getNome(), produto.getPreco());
-                        String respostaPositiva = "produto criado com sucesso";
+
+                    CriaEstoqueDTO dto = json.fromJson(new InputStreamReader(exchange.getRequestBody()), CriaEstoqueDTO.class);
+                    Produto produto = new Produto(dto.produto().nome(), dto.produto().preco());
+                    Estoque estoque = new Estoque(produto, dto.quantidade());
+                    if (estoque != null) {
+                        produtoService.adicionarProdutoAoEstoque(produto, dto.quantidade());
+                        String respostaPositiva = "Estoque adicionado com sucesso!";
                         byte[] respostaPositivaBytes = respostaPositiva.getBytes();
                         exchange.getResponseHeaders().add("Content-Type", "application/json");
                         exchange.sendResponseHeaders(200, respostaPositivaBytes.length);
@@ -69,7 +76,7 @@ public class ProdutoController implements HttpHandler {
                             throw new RuntimeException(e);
                         }
                     } else {
-                        String negativa = "Erro ao criar o produto";
+                        String negativa = "Erro ao adicionar estoque!";
                         byte[] negativaByte = negativa.getBytes();
                         exchange.getResponseHeaders().add("Content-Type", "application/json");
                         exchange.sendResponseHeaders(400, negativaByte.length);
@@ -86,17 +93,20 @@ public class ProdutoController implements HttpHandler {
                     throw new RuntimeException(e);
                 }
                 break;
-            
+
             case "DELETE":
                 try {
-                    ProcuraObjDTO objDTO = json.fromJson(new InputStreamReader(exchange.getRequestBody()), ProcuraObjDTO.class);
-                    if (produtoService.removerProduto(objDTO.nome()) == true) {
+                    CriaEstoqueDTO estoqueDTO = json.fromJson(new InputStreamReader(exchange.getRequestBody()), CriaEstoqueDTO.class);
+                    Produto produto = new Produto(estoqueDTO.produto().nome(), estoqueDTO.produto().preco());
+                    Estoque estoque = new Estoque(produto, estoqueDTO.quantidade());
+                    if (produtoService.removerEstoque(estoque)) {
                         String removido = "produto removido";
                         byte[] removidoByte = removido.getBytes();
                         exchange.getResponseHeaders().add("Content-Type", "application/json");
                         exchange.sendResponseHeaders(200, removidoByte.length);
                         try (OutputStream os = exchange.getResponseBody()) {
                             os.write(removidoByte);
+                            System.out.println(removidoByte);
                         }
                     } else {
                         String negativa = "Erro ao deletar o produto";
@@ -105,6 +115,7 @@ public class ProdutoController implements HttpHandler {
                         exchange.sendResponseHeaders(400, negativaByte.length);
                         try (OutputStream os = exchange.getResponseBody()) {
                             os.write(negativaByte);
+                            System.out.println(negativaByte);
                         }
                     }
                 } catch (JsonSyntaxException e) {
@@ -118,14 +129,17 @@ public class ProdutoController implements HttpHandler {
 
             case "PUT":
                 try {
-                    AtualizaçãoProduto att = json.fromJson(new InputStreamReader(exchange.getRequestBody()), AtualizaçãoProduto.class);
-                    if (produtoService.atualizarPreço(att)) {
+                    CriaEstoqueDTO estoqueDTO = json.fromJson(new InputStreamReader(exchange.getRequestBody()), CriaEstoqueDTO.class);
+                    Produto produto = new Produto(estoqueDTO.produto().nome(), estoqueDTO.produto().preco());
+                    Estoque estoque = new Estoque(produto, estoqueDTO.quantidade());
+                    if (produtoService.atualizarProduto(estoque)) {
                         String nomeAtualizar = "preço atualizado";
                         byte[] atualizarPreço = nomeAtualizar.getBytes();
                         exchange.getResponseHeaders().add("Content-Type", "application/json");
                         exchange.sendResponseHeaders(200, atualizarPreço.length);
                         try (OutputStream os = exchange.getResponseBody()) {
                             os.write(atualizarPreço);
+                            System.out.println(nomeAtualizar);
                         }
                     } else {
                         String negativa = "erro ao atualizar";
@@ -134,6 +148,7 @@ public class ProdutoController implements HttpHandler {
                         exchange.sendResponseHeaders(400, negativaByte.length);
                         try (OutputStream os = exchange.getResponseBody()) {
                             os.write(negativaByte);
+                            System.out.println(negativaByte);
                         }
                     }
                 } catch (JsonSyntaxException e) {
@@ -145,14 +160,6 @@ public class ProdutoController implements HttpHandler {
                 }
                 break;
         }
-                
-                
 
-
-
-            
-        }
-
-        
     }
-
+}

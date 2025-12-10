@@ -2,7 +2,7 @@ package com.sistemabar.model;
 
 public class Estoque {
     private Produto produto;
-    private int quantidade;
+    private Integer quantidade;
     public Estoque(Produto produto, int quantidade) {
         this.produto = produto;
         this.quantidade = quantidade;

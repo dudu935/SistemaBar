@@ -1,36 +1,39 @@
 package com.sistemabar.controller;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonIOException;
+import com.google.gson.JsonSyntaxException;
+import com.sistemabar.CarrinhoAddDTO;
+import com.sistemabar.CriaEstoqueDTO;
+import com.sistemabar.model.Estoque;
+import com.sistemabar.model.Produto;
+import com.sistemabar.repository.EstoqueRepository;
+import com.sistemabar.repository.ProdutoRepository;
+import com.sistemabar.service.ProdutoService;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 
-import com.google.gson.*;
-import com.sistemabar.AtualizaçãoProduto;
-import com.sistemabar.ProcuraObjDTO;
-import com.sistemabar.model.Produto;
-
-import com.sistemabar.model.Produto;
-import com.sistemabar.repository.EstoqueRepository;
-import com.sistemabar.repository.ProdutoRepository;
-import com.sistemabar.service.ProdutoService;
-import com.sun.net.httpserver.*;
-
-
-public class ProdutoController implements HttpHandler {
+public class CarrinhoController implements HttpHandler {
     ProdutoRepository produtoRepository = new ProdutoRepository();
     EstoqueRepository estoqueRepository = new EstoqueRepository();
     ProdutoService produtoService = new ProdutoService(estoqueRepository, produtoRepository);
     Gson json = new GsonBuilder().setPrettyPrinting().create();
 
     @Override
-    public void handle(@org.jetbrains.annotations.NotNull HttpExchange exchange) throws IOException{
+    public void handle(@org.jetbrains.annotations.NotNull HttpExchange exchange) throws IOException {
         String method = exchange.getRequestMethod();
         String response = "";
 
         switch (method) {
             case "GET":
                 try {
-                    response = json.toJson(produtoService.listarProdutos());
+                    response = json.toJson(produtoService.mostrarCarrinho());
                     byte[] respostaBytes = response.getBytes(StandardCharsets.UTF_8);
 
                     exchange.getResponseHeaders().add("Content-Type", "application/json");
@@ -52,24 +55,58 @@ public class ProdutoController implements HttpHandler {
                     }
                 }
                 break;
-            
+
             case "POST":
-                try {
-                    Produto produto = json.fromJson(new InputStreamReader(exchange.getRequestBody()), Produto.class);
-                    if (produto != null) {
-                        produtoService.criarProduto(produto.getNome(), produto.getPreco());
-                        String respostaPositiva = "produto criado com sucesso";
-                        byte[] respostaPositivaBytes = respostaPositiva.getBytes();
+                String path = exchange.getRequestURI().getPath();
+                if(path.equals("/carrinho")) {
+                    try {
+
+                        CarrinhoAddDTO carrinhoDTO = json.fromJson(new InputStreamReader(exchange.getRequestBody()), CarrinhoAddDTO.class);
+                        Produto produto = new Produto(carrinhoDTO.produto().nome(), carrinhoDTO.produto().preco());
+                        if (produto != null) {
+                            produtoService.adicionarProdutoAoCarrinho(produto, carrinhoDTO.quantidade());
+                            String respostaPositiva = "Estoque adicionado com sucesso!";
+                            byte[] respostaPositivaBytes = respostaPositiva.getBytes();
+                            exchange.getResponseHeaders().add("Content-Type", "application/json");
+                            exchange.sendResponseHeaders(200, respostaPositivaBytes.length);
+                            try (OutputStream os = exchange.getResponseBody()) {
+                                os.write(respostaPositivaBytes);
+                                System.out.println(respostaPositivaBytes);
+                            } catch (IOException e) {
+                                throw new RuntimeException(e);
+                            }
+                        } else {
+                            String negativa = "Erro ao adicionar estoque!";
+                            byte[] negativaByte = negativa.getBytes();
+                            exchange.getResponseHeaders().add("Content-Type", "application/json");
+                            exchange.sendResponseHeaders(400, negativaByte.length);
+                            try (OutputStream os = exchange.getResponseBody()) {
+                                os.write(negativaByte);
+                                System.out.println(negativaByte);
+                            } catch (IOException e) {
+                                throw new RuntimeException(e);
+                            }
+                        }
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    } catch (RuntimeException e) {
+                        throw new RuntimeException(e);
+                    }
+                    break;
+                } else if (path.equals("/carrinho/compra")) {
+                    if(produtoService.comprarCarrinho(true)){
+                        String positiva = "Compra realizada com sucesso!";
+                        byte[] positivaBytes = positiva.getBytes();
                         exchange.getResponseHeaders().add("Content-Type", "application/json");
-                        exchange.sendResponseHeaders(200, respostaPositivaBytes.length);
+                        exchange.sendResponseHeaders(200, positivaBytes.length);
                         try (OutputStream os = exchange.getResponseBody()) {
-                            os.write(respostaPositivaBytes);
-                            System.out.println(respostaPositivaBytes);
+                            os.write(positivaBytes);
+                            System.out.println(positivaBytes);
                         } catch (IOException e) {
                             throw new RuntimeException(e);
                         }
                     } else {
-                        String negativa = "Erro ao criar o produto";
+                        String negativa = "Erro ao finalizar a compra";
                         byte[] negativaByte = negativa.getBytes();
                         exchange.getResponseHeaders().add("Content-Type", "application/json");
                         exchange.sendResponseHeaders(400, negativaByte.length);
@@ -80,23 +117,22 @@ public class ProdutoController implements HttpHandler {
                             throw new RuntimeException(e);
                         }
                     }
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                } catch (RuntimeException e) {
-                    throw new RuntimeException(e);
+                    break;
                 }
-                break;
-            
+
+
             case "DELETE":
                 try {
-                    ProcuraObjDTO objDTO = json.fromJson(new InputStreamReader(exchange.getRequestBody()), ProcuraObjDTO.class);
-                    if (produtoService.removerProduto(objDTO.nome()) == true) {
+                    CarrinhoAddDTO carrinhoDTO = json.fromJson(new InputStreamReader(exchange.getRequestBody()), CarrinhoAddDTO.class);
+                    Produto produto = new Produto(carrinhoDTO.produto().nome(), carrinhoDTO.produto().preco());
+                    if (produtoService.removerProdutoCar(carrinhoDTO)) {
                         String removido = "produto removido";
                         byte[] removidoByte = removido.getBytes();
                         exchange.getResponseHeaders().add("Content-Type", "application/json");
                         exchange.sendResponseHeaders(200, removidoByte.length);
                         try (OutputStream os = exchange.getResponseBody()) {
                             os.write(removidoByte);
+                            System.out.println(removido);
                         }
                     } else {
                         String negativa = "Erro ao deletar o produto";
@@ -105,6 +141,7 @@ public class ProdutoController implements HttpHandler {
                         exchange.sendResponseHeaders(400, negativaByte.length);
                         try (OutputStream os = exchange.getResponseBody()) {
                             os.write(negativaByte);
+                            System.out.println(negativa);
                         }
                     }
                 } catch (JsonSyntaxException e) {
@@ -118,14 +155,16 @@ public class ProdutoController implements HttpHandler {
 
             case "PUT":
                 try {
-                    AtualizaçãoProduto att = json.fromJson(new InputStreamReader(exchange.getRequestBody()), AtualizaçãoProduto.class);
-                    if (produtoService.atualizarPreço(att)) {
-                        String nomeAtualizar = "preço atualizado";
+                    CarrinhoAddDTO carrinhoDTO = json.fromJson(new InputStreamReader(exchange.getRequestBody()), CarrinhoAddDTO.class);
+                    Produto produto = new Produto(carrinhoDTO.produto().nome(), carrinhoDTO.produto().preco());
+                    if (produtoService.atualizaCarrinho(carrinhoDTO)) {
+                        String nomeAtualizar = "carrinho atualizado";
                         byte[] atualizarPreço = nomeAtualizar.getBytes();
                         exchange.getResponseHeaders().add("Content-Type", "application/json");
                         exchange.sendResponseHeaders(200, atualizarPreço.length);
                         try (OutputStream os = exchange.getResponseBody()) {
                             os.write(atualizarPreço);
+                            System.out.println(nomeAtualizar);
                         }
                     } else {
                         String negativa = "erro ao atualizar";
@@ -134,6 +173,7 @@ public class ProdutoController implements HttpHandler {
                         exchange.sendResponseHeaders(400, negativaByte.length);
                         try (OutputStream os = exchange.getResponseBody()) {
                             os.write(negativaByte);
+                            System.out.println(negativa);
                         }
                     }
                 } catch (JsonSyntaxException e) {
@@ -145,14 +185,6 @@ public class ProdutoController implements HttpHandler {
                 }
                 break;
         }
-                
-                
 
-
-
-            
-        }
-
-        
     }
-
+}

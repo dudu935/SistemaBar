@@ -14,8 +14,10 @@ import java.util.List;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import com.sistemabar.AtualizaçãoProduto;
 import com.sistemabar.model.Carrinho;
 import com.sistemabar.model.Estoque;
+import com.sistemabar.model.Produto;
 import com.sistemabar.model.ProdutoCarrinho;
 
 
@@ -109,6 +111,69 @@ public class EstoqueRepository {
                 }
         }   
         return null;}
+
+        public void removerUmPRoduto(Estoque estoque) {
+            try (FileReader reader = new FileReader("estoque.json")) {
+                estoques = json.fromJson(reader, new TypeToken<List<Estoque>>(){}.getType());
+            } catch (IOException e) {
+                System.out.println("Erro na comunicação com o arquivo de estoque.");
+            }
+            for (Estoque estoque1 : estoques) {
+                Iterator<Estoque> iterator = estoques.iterator();
+                while(iterator.hasNext()) {
+
+                    if (estoque1.getProduto().getNome().equalsIgnoreCase(estoque.getProduto().getNome())) {
+                    Integer novaQuantidade = estoque.getQuantidade() - estoque1.getQuantidade();
+                    if (novaQuantidade > 0) {
+                        estoque1.setQuantidade(novaQuantidade);
+                        System.out.println("estoque atualizado com sucesso.");
+                    } else {
+                        iterator.remove();
+                        System.out.println("estoque zerou");
+                    }
+
+                    }
+                }
+            }
+            try (FileWriter writer = new FileWriter("estoque.json")) {
+                json.toJson(estoques, writer);
+                System.out.println("Estoque atualizado com sucesso.");
+            } catch (java.io.IOException e) {
+                System.err.println("Erro ao atualizar estoque: " + e.getMessage());
+            }
+
+        }
+    public boolean atualizarEstoque(Estoque estoque) {
+        try (FileReader reader = new FileReader("estoque.json")) {
+            estoques = json.fromJson(reader, new TypeToken<List<Estoque>>(){}.getType());
+            if(estoques == null) {
+                estoques = new ArrayList<>();
+            }
+        } catch (IOException e) {
+            estoques = new ArrayList<>();
+        }
+        boolean atualizado = false;
+        for (Estoque estoque1 : estoques) {
+            Iterator<Estoque> iterator = estoques.iterator();
+            while(iterator.hasNext()) {
+                if (estoque1.getNome().equals(estoque.getProduto().getNome())) {
+                    estoque1.setQuantidade(estoque.getQuantidade());
+                    atualizado = true;
+                    break;
+                }
+            }
+        }
+        try (FileWriter writer = new FileWriter("estoque.json")) {
+            if(atualizado) {
+                json.toJson(estoques, writer);
+                return true;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+        return atualizado;
+    }
     }
 
     

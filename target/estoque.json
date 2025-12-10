@@ -1,0 +1,10 @@
+[
+  {
+    "produto": {
+      "nome": "cerveja",
+      "preco": 5.0,
+      "id": "4e1ba3fe-e7ef-4c1e-bec0-45c044ec3631"
+    },
+    "quantidade": 150
+  }
+]

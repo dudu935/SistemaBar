@@ -5,10 +5,10 @@ import java.util.UUID;
 
 public class Produto {
     private String nome;
-    private double preco;
+    private Double preco;
     private UUID id;
 
-    public Produto(String nome, double preco) {
+    public Produto(String nome, Double preco) {
         this.id = UUID.randomUUID();
         this.nome = nome;
         this.preco = preco;
